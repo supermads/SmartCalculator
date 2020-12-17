@@ -1,10 +1,10 @@
 # write your code here
 def add(nums):
     if nums:
-        sum = 0
+        acc = 0
         for n in nums:
-            sum += int(n)
-        print(sum)
+            acc += int(n)
+        print(acc)
 
 
 def main():
@@ -13,6 +13,8 @@ def main():
         if nums == ['/exit']:
             print('Bye')
             return
+        elif nums == ['/help']:
+            print('The program calculates the sum of numbers')
         else:
             add(nums)
 
