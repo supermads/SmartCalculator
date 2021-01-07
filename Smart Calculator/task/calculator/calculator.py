@@ -11,59 +11,91 @@ def process_expression(exp):
     return exp
 
 
-def check_expression(sub_exps):
-    op_list = ['+', '-']
-    if len(sub_exps) == 1:
-        if sub_exps[0].isnumeric() or (sub_exps[0][0] in op_list and sub_exps[0][1:].isnumeric()):
-            return True
-        else:
-            return False
-    ops = 0
-    nums = 0
-    for c in sub_exps:
-        if c in op_list:
-            ops += 1
-        elif c.isnumeric():
-            nums += 1
-    if ops + 1 == nums:
-        return True
-    return False
-
-
-def add(nums):
-    a, b = map(int, nums)
-    return a + b
-
-
-def subtract(nums):
-    a, b = map(int, nums)
-    return a - b
-
-
-def do_calculations(variables, exp):
-    exp = process_expression(exp)
-    sub_exps = exp.split()
+def convert_to_postfix(variables, exp):
+    exp = exp.replace('(', '( ')
+    exp = exp.replace(')', ' )')
+    sub_exps = process_expression(exp).split()
+    stack = []
+    postfix = []
+    op_dict = {'-': 0, '+': 0, '/': 1, '*': 1, '^': 2, ')': 3, '(': 3}
     for i in range(len(sub_exps)):
         if sub_exps[i] in variables:
             sub_exps[i] = variables.get(sub_exps[i])
-    is_valid = check_expression(sub_exps)
-    if is_valid:
-        acc = sub_exps[0]
-        while len(sub_exps) > 1:
-            if sub_exps[1] == '+':
-                acc = add([sub_exps[0], sub_exps[2]])
-            elif sub_exps[1] == '-':
-                acc = subtract([sub_exps[0], sub_exps[2]])
-            del sub_exps[0:2]
-            sub_exps[0] = acc
-        print(str(acc).strip('+'))
-    elif len(sub_exps) == 1 and sub_exps[0].isalpha():
-        if sub_exps[0] in variables:
-            print(variables.get(sub_exps[0]))
+    for x in sub_exps:
+        # Rule 1
+        if x.isnumeric():
+            postfix.append(x)
         else:
-            print('Unknown variable')
+            if stack:
+                top_of_stack = stack[-1]
+                top_precedence = op_dict.get(top_of_stack)
+            else:
+                top_of_stack = 0
+                top_precedence = 0
+            curr_precedence = op_dict.get(x)
+            # Rule 5
+            if x == '(':
+                stack.append(x)
+            # Rule 6
+            elif x == ')':
+                while stack and top_of_stack != '(':
+                    postfix.append(stack.pop())
+                    if stack:
+                        top_of_stack = stack[-1]
+                if top_of_stack == '(':
+                    stack.pop()
+                else:
+                    raise Exception
+            # Rules 2 and 3
+            elif not stack or top_of_stack == '(' or curr_precedence > top_precedence:
+                stack.append(x)
+            # Rule 4
+            elif curr_precedence <= top_precedence:
+                top_of_stack = stack[-1]
+                top_precedence = op_dict.get(top_of_stack)
+                curr_precedence = op_dict.get(x)
+                while curr_precedence <= top_precedence and stack and top_of_stack != '(':
+                    postfix.append(stack.pop())
+                stack.append(x)
+    # Check if any parentheses remaining on stack
+    if '(' in stack or ')' in stack:
+        raise Exception
     else:
-        print('Invalid expression')
+        # rule 7
+        while stack:
+            postfix.append(stack.pop())
+    return postfix
+
+
+def do_operation(a, b, op):
+    if op == '+':
+        return a + b
+    elif op == '-':
+        return a - b
+    elif op == '*':
+        return a * b
+    elif op == '/':
+        return a / b
+    elif op == '^':
+        return a ** b
+
+
+def do_stack_calc(postfix):
+    stack = []
+    ops = ['^', '*', '/', '+', '-']
+    for x in postfix:
+        if x.isnumeric():
+            stack.append(x)
+        elif x in ops:
+            b = int(stack.pop())
+            a = int(stack.pop())
+            stack.append(do_operation(a, b, x))
+        else:
+            print(x)
+            raise Exception
+    while len(stack) > 1:
+        stack.pop()
+    return stack[0]
 
 
 def main():
@@ -71,8 +103,14 @@ def main():
     while True:
         exp = input()
         if exp:
+            # Check if just variable name entered. If it's a valid variable, print its value.
+            if exp.strip().isalpha():
+                if exp[0] in variables:
+                    print(variables.get(exp[0]))
+                else:
+                    print('Unknown variable')
             # Process Commands
-            if exp[0] == '/':
+            elif exp[0] == '/':
                 command = exp[1:]
                 if command == 'exit':
                     print('Bye!')
@@ -100,9 +138,17 @@ def main():
                             print('Invalid assignment')
                         else:
                             variables[left] = right
-            # Perform Calculations
+            # Convert to Postfix and Do Calculations (If Possible)
             else:
-                do_calculations(variables, exp)
+                try:
+                    postfix = convert_to_postfix(variables, exp)
+                    if postfix:
+                        ans = do_stack_calc(postfix)
+                        if ans is not None:
+                            print(ans)
+                except Exception:
+                    print('Invalid expression')
 
 
 main()
+
